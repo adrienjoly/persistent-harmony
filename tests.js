@@ -1,7 +1,21 @@
 console.log("persistent-harmony tests");
 
 var module = require("./persistent-harmony.js");
-var PH = module.PHProxy;
+
+function LoggedPH(o) {
+	var handlers = module.makePHHandlers(o);
+	var realPH = module.PHProxy(o, handlers);
+	Object.keys(handlers).map(function(method){
+		var realMethod = handlers[method];
+		handlers[method] = function(a,b,c) {
+			console.log("   [proxy]", method);
+			return realMethod(a,b,c);
+		}
+	});
+	return realPH;
+}
+
+var PH = LoggedPH; // ... or module.PHProxy;
 
 var tests = [
 	["get field", function(cb){
