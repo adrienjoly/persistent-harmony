@@ -1,8 +1,19 @@
 /**
  * persistent-harmony proxy
  * author: adrien joly
- * ref: http://wiki.ecmascript.org/doku.php?id=harmony:proxies
+ * refs:
+ * - http://wiki.ecmascript.org/doku.php?id=harmony:proxies
+ * - http://crypticswarm.com/harmony-proxies-introduction
  **/
+
+function Log(handler, id) {
+	return Proxy.create({
+		get: function(_, name) {
+			console.log(id + " -> " + name);
+			return handler[name];
+		}
+	});
+}
 
  exports.makePHHandlers = function(o) {
 	return {
@@ -18,6 +29,20 @@
 			//console.log("   [proxy] delete field:", name);
 			return delete o[name];
 		},
+		keys: function() {
+			//console.log("   [proxy] keys");
+			return Object.keys(o);
+		},
+		enumerate: function() {
+			//console.log("   [proxy] enumerate");
+			/*
+			var r = [];
+			for (var n in o)
+				r.push(n);
+			return r;*/
+			return Object.keys(o);
+		},
+		/*
 		getOwnPropertyDescriptor: function(name) {
 			//console.log("   [proxy] getOwnPropertyDescriptor:", name);
 			return Object.getOwnPropertyDescriptor(o, name);
@@ -53,21 +78,33 @@
 		hasOwn:function(name) {
 			//console.log("   [proxy] hasOwn:", name);
 			return ({}).hasOwnProperty.call(o, name);
-		},
-		enumerate: function() {
-			//console.log("   [proxy] enumerate");
-			var r = [];
-			for (var n in o)
-				r.push(n);
-			return r;
-		},
-		keys: function() {
-			//console.log("   [proxy] keys");
-			return Object.keys(o);
-		}
+		},*/
 	};
  }
 
  exports.PHProxy = function(o, handlers) {
-	return Proxy.create(handlers || exports.makePHHandlers(o), o);
+ 	var handlers = handlers || exports.makePHHandlers(o);
+	return Proxy.create(handlers, o);
 }
+/* WORK IN PROGRESS
+ exports.PHProxy = function(o, params) {
+ 	var params = params || {};
+ 	var handlers = exports.makePHHandlers(o);
+ 	if (params.)
+	return Proxy.create(handlers, o);
+} */
+
+exports.LoggedPH = function(o) {
+	var handlers = exports.makePHHandlers(o);
+	var realPH = exports.PHProxy(o, handlers);
+	Object.keys(handlers).map(function(method){
+		var realMethod = handlers[method];
+		handlers[method] = function(a,b,c) {
+			console.log("   [proxy]", method);
+			return realMethod(a,b,c);
+		}
+	});
+	return realPH;
+}
+
+
