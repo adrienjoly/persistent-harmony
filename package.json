@@ -1,0 +1,26 @@
+{
+  "name": "persistent-harmony",
+  "version": "0.1.0",
+  "keywords": [],
+  "author": {
+    "name": "Adrien Joly",
+    "email": "adrien@whyd.com",
+    "url":  "http://adrienjoly.com/"
+  },
+  "homepage": "http://adrienjoly.com/persistent-harmony",
+  "repository": {
+    "type": "git",
+    "url": "https://gitub.com/adrienjoly/persistent-harmony"
+  },
+
+  "engines": {
+    "node": ">= 0.6.0",
+    "npm": ">= 1.0.0"
+  },
+
+  "dependencies": {
+    "mongodb": ">=1.0"
+  },
+  "devDependencies": {},
+  "bundleDependencies": []
+}

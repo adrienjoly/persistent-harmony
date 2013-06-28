@@ -1,0 +1,4 @@
+# set mac osx's terminal title
+echo -n -e "\033]0;mongoc\007"
+
+/usr/local/mongodb/bin/mongo
