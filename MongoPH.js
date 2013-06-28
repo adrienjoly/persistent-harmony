@@ -1,6 +1,6 @@
 var mongodb = require("mongodb");
 
-var LOAD = 0, SET = 1, DELETE = 2;
+var BATCH_SIZE = 100;
 
 exports.MongoConnector = function(p, cb) {
 
@@ -33,16 +33,34 @@ exports.MongoConnector = function(p, cb) {
 		}
 	};
 
-	this.load = function(colName, cb) {
-		if (self.collections[colName])
-			cb();
+	function makeCursor(col, cb, cb2){
+		col.find({}, {batchSize: BATCH_SIZE}, function(err, cursor){
+			if (err) throw err;
+			cb({
+				next: function(handler) {
+					cursor.nextObject(function(err, item) {
+						if (err) {
+							//handler({error:err});
+							throw err;
+						}
+						else
+							handler(item /*, item ? next : undefined*/);
+					});
+				}
+			}, cb2);
+		});
+	}
+
+	this.load = function(colName, cb, cb2) {
+		var col = self.collections[colName];
+		if (col)
+			makeCursor(col, cb, cb2);
 		else
-			db.createCollection(colName, function(err, result) {
+			db.createCollection(colName, function(err, col) {
 				if (err) throw err;
-				self.collections[colName] = result;
-				nextTransaction();
+				self.collections[colName] = col;
+				makeCursor(col, cb, cb2);
 			});
-		// TODO: populate object from db data
 	}
 
 	this.set = function(colName, field, value, cb) {
@@ -69,7 +87,7 @@ exports.MongoConnector = function(p, cb) {
 				(function next(){
 					var colName = (collections.shift() || {}).collectionName;
 					if (!colName)
-						cb && cb();
+						cb && cb(self);
 					else
 						db.collection(colName, function(err, col) {
 							console.log(" - found table: " + colName);
@@ -81,50 +99,20 @@ exports.MongoConnector = function(p, cb) {
 	});
 }
 
+var LOAD = 0, SET = 1, DELETE = 2;
 var FCT_NAME = ["load", "set", "delete"];
 
-exports.MongoPH = function(p) {
+exports.MongoPH = function(p, cb) {
 
 	var self = this;
-	var isReady = false;
 	var p = p || {};
-	this.proxies = {}; // table-name -> proxy
+	this.db = null;
+	//this.obj = {}; // name -> object
+	//this.proxies = {}; // table-name -> proxy
 	this.q = {}; // colName -> transaction queue
 
-	function buildHandlers (colName, o) {
-		var o = o || {};
-		//var col = self.collection[colName];
-		self.q[colName] = [[LOAD]];
-		/*var col;
-		db.collection(colName, function(err, result) {
-			col = result;
-			console.log("col", err , result);
-		});*/
-		return {
-			get: function(p, f){
-				return o[f];
-			},
-			set: function(p, f, val) {
-				//col.update({_id: f}, {$set:{v:val}});
-				self.q[colName].push([SET, f, val]);
-				return o[f] = val;
-			},
-			delete: function(f) {
-				//col.remove({_id: f});
-				self.q[colName].push([DELETE, f]);
-				return delete o[f];
-			},
-			keys: function() {
-				return Object.keys(o);
-			},
-			enumerate: function() {
-				return Object.keys(o);
-			}
-		};
-	};
-
 	function pump() {
-		console.log("(pump)"/*, self.q*/);
+		//console.log("(pump)"/*, self.q*/);
 		var cols = Object.keys(self.q);
 		(function nextCollection(){
 			var colName = cols.shift();
@@ -133,57 +121,89 @@ exports.MongoPH = function(p) {
 			else
 				(function nextTransaction(){
 					var t = self.q[colName].shift();
-					if (t) {
-						var fct = FCT_NAME[t.shift()];
-						console.log("(pump) -", colName, fct, [colName].concat(t).concat(nextTransaction));
-						self.db[fct].apply(self.db, [colName].concat(t).concat(nextTransaction));
+					if (!t)
+						process.nextTick(nextCollection);
+					else {
+						var fct = FCT_NAME[t.shift()], args = [colName].concat(t);
+						console.log("(pump) -", colName, fct, args);
+						self.db[fct].apply(self.db, args.concat(/*fct != "load" ?*/ nextTransaction /*: function(c){
+							// the load method returns a cursor => populate the object
+							var o = self.obj[colName];
+							(function nextField(){
+								c.next(function(field){
+									if (!field)
+										process.nextTick(nextTransaction);
+									else {
+										o[field._id] = o[field.v];
+										nextField();
+									}
+								});
+							})();
+						}*/));
 					}
-					else
-						nextCollection();
-					/*else if (t[0] == SET)
-						self.collections[colName].update({_id: t[1]}, {$set:{v:t[2]}}, {upsert:true}, function(err, res){
-							if (err) throw err;
-							nextTransaction();								
-						});
-					else if (t[0] == DELETE)
-						self.collections[colName].remove({_id: t[1]}, function(err, res){
-							if (err) throw err;
-							nextTransaction();								
-						});
-					else if (t[0] == INIT && !self.collections[colName])
-						db.createCollection(colName, function(err, result) {
-							if (err) throw err;
-							self.collections[colName] = result;
-							// TODO: populate object from db data
-							nextTransaction();
-						});
-					else
-						nextTransaction();*/
 				})();
 		})();
 	}
 
-	this.wrap = function(name, o) {
-		return this.proxies[name] = Proxy.create(buildHandlers(name, o), o || {});
+	this.wrap = function(colName, o, cb) {
+		var o = o || {};
+		//this.obj[colName] = o;
+		this.q[colName] = [[LOAD, function(cursor, cb){
+			//var o = self.obj[colName];
+			(function nextField(){
+				cursor.next(function(field){
+					if (!field)
+						process.nextTick(cb);
+					else {
+						o[field._id] = o[field.v];
+						nextField();
+					}
+				});
+			})();
+		}]];
+		var handlers = {
+			get: function(p, f){
+				return o[f];
+			},
+			set: function(p, f, val) {
+				self.q[colName].push([SET, f, val]);
+				return o[f] = val;
+			},
+			delete: function(f) {
+				self.q[colName].push([DELETE, f]);
+				return delete o[f];
+			},
+			keys: function() {
+				return Object.keys(o);
+			},
+			enumerate: function() {
+				return Object.keys(o);
+			},
+
+			// required when trying to console.log(proxy) after 2 seconds of tests
+			getOwnPropertyDescriptor: function(name) {
+				return Object.getOwnPropertyDescriptor(o, name);
+			},
+
+		};
+		return /*this.proxies[name] =*/ Proxy.create(handlers, o);
 	};
 
 	this.whenReady = function(cb) {
-		if (isReady)
-			cb(self);
-		else
-			var interval = setInterval(function(){
-				if (isReady) {
-					clearInterval(interval);
-					cb(self);
-				}
-			}, 200);
+		var interval = setInterval(function(){
+			if (self.db) {
+				clearInterval(interval);
+				cb(self);
+			}
+		}, 100);
 	};
 
 	// db init
 
-	this.db = new exports.MongoConnector(p, function(){
-		isReady = true;
+	new exports.MongoConnector(p, function(db){
 		console.log("MongoDB is ready!");
+		self.db = db;
+		cb && cb(self)
 		pump();
 	});
 
