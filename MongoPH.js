@@ -1,4 +1,5 @@
 var mongodb = require("mongodb");
+var ph = require("./persistent-harmony.js");
 
 var BATCH_SIZE = 100;
 
@@ -99,113 +100,10 @@ exports.MongoConnector = function(p, cb) {
 	});
 }
 
-var LOAD = 0, SET = 1, DELETE = 2;
-var FCT_NAME = ["load", "set", "delete"];
-
 exports.MongoPH = function(p, cb) {
-
-	var self = this;
-	var p = p || {};
-	this.db = null;
-	//this.obj = {}; // name -> object
-	//this.proxies = {}; // table-name -> proxy
-	this.q = {}; // colName -> transaction queue
-
-	function pump() {
-		//console.log("(pump)"/*, self.q*/);
-		var cols = Object.keys(self.q);
-		(function nextCollection(){
-			var colName = cols.shift();
-			if (!colName)
-				setTimeout(pump, 1000);
-			else
-				(function nextTransaction(){
-					var t = self.q[colName].shift();
-					if (!t)
-						process.nextTick(nextCollection);
-					else {
-						var fct = FCT_NAME[t.shift()], args = [colName].concat(t);
-						console.log("(pump) -", colName, fct, args);
-						self.db[fct].apply(self.db, args.concat(/*fct != "load" ?*/ nextTransaction /*: function(c){
-							// the load method returns a cursor => populate the object
-							var o = self.obj[colName];
-							(function nextField(){
-								c.next(function(field){
-									if (!field)
-										process.nextTick(nextTransaction);
-									else {
-										o[field._id] = o[field.v];
-										nextField();
-									}
-								});
-							})();
-						}*/));
-					}
-				})();
-		})();
-	}
-
-	this.wrap = function(colName, o, cb) {
-		var o = o || {};
-		//this.obj[colName] = o;
-		this.q[colName] = [[LOAD, function(cursor, cb){
-			//var o = self.obj[colName];
-			(function nextField(){
-				cursor.next(function(field){
-					if (!field)
-						process.nextTick(cb);
-					else {
-						o[field._id] = o[field.v];
-						nextField();
-					}
-				});
-			})();
-		}]];
-		var handlers = {
-			get: function(p, f){
-				return o[f];
-			},
-			set: function(p, f, val) {
-				self.q[colName].push([SET, f, val]);
-				return o[f] = val;
-			},
-			delete: function(f) {
-				self.q[colName].push([DELETE, f]);
-				return delete o[f];
-			},
-			keys: function() {
-				return Object.keys(o);
-			},
-			enumerate: function() {
-				return Object.keys(o);
-			},
-
-			// required when trying to console.log(proxy) after 2 seconds of tests
-			getOwnPropertyDescriptor: function(name) {
-				return Object.getOwnPropertyDescriptor(o, name);
-			},
-
-		};
-		return /*this.proxies[name] =*/ Proxy.create(handlers, o);
-	};
-
-	this.whenReady = function(cb) {
-		var interval = setInterval(function(){
-			if (self.db) {
-				clearInterval(interval);
-				cb(self);
-			}
-		}, 100);
-	};
-
-	// db init
-
 	new exports.MongoConnector(p, function(db){
-		console.log("MongoDB is ready!");
-		self.db = db;
-		cb && cb(self)
-		pump();
+		//console.log("MongoDB is ready!");
+		cb(new ph.PHProxy(db));
 	});
-
 }
 

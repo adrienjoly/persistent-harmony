@@ -1,8 +1,9 @@
 console.log("persistent-harmony tests with MongoDB");
 
+//var ph = require("./persistent-harmony.js");
 var MongoPH = require("./MongoPH.js").MongoPH;
 
-new MongoPH({}).whenReady(function(mongoPH){
+new MongoPH({}, function(mongoPH){
 	console.log("MongoPH: ready!");
 	var mymap = mongoPH.wrap("mymap");
 	console.log("myapp", mymap);
