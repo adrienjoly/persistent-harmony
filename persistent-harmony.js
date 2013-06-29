@@ -19,16 +19,14 @@ exports.PHProxy = function(db) {
 	this.wrap = function(colName, o, cb) {
 		var o = o || {};
 		function populateFields(cursor, cb){
-			//(function nextField(){
-				cursor.next(function(field){
-					if (!field)
-						process.nextTick(cb);
-					else {
-						o[field._id] = o[field.v];
-						populateFields(cursor, cb);
-					}
-				});
-			//})();
+			cursor.next(function(field){
+				if (!field)
+					process.nextTick(cb);
+				else {
+					o[field._id] = field.v;
+					populateFields(cursor, cb);
+				}
+			});
 		}
 		this.q[colName] = [[LOAD, populateFields]];
 		var handlers = {

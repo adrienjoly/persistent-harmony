@@ -2,55 +2,44 @@ var mongodb = require("mongodb");
 var ph = require("./persistent-harmony.js");
 
 var BATCH_SIZE = 100;
+var FETCH_OPTS = {batchSize: BATCH_SIZE};
+var DB_OPTS = {native_parser:false, strict:true, safe:true};
+var SERVER_OPTS = {auto_reconnect:true};
 
+function makeCursor(col, cb, cb2){
+	col.find({}, FETCH_OPTS, function(err, cursor){
+		if (err) throw err;
+		cb({
+			next: function(handler) {
+				cursor.nextObject(function(err, item) {
+					if (err) throw err;
+					handler(item);
+				});
+			}
+		}, cb2);
+	});
+}
+
+/**
+ * db layer for a mongodb database.
+ * p  <- { dbname, dbhost, dbport }
+ * cb -> { load(), set(), delete() }
+ **/
 exports.MongoConnector = function(p, cb) {
 
 	var self = this;
-	var p = p || {};
 	this.collections = {};
 
+	var p = p || {};
 	var dbName = p.dbname || "local";
 	var host = p.dbhost || process.env['MONGO_NODE_DRIVER_HOST'] || 'localhost';
 	var port = p.dbport || process.env['MONGO_NODE_DRIVER_PORT'] || mongodb.Connection.DEFAULT_PORT;
 
 	console.log("Connecting to MongoDB/"+dbName+" @ " + host + ":" + port + "...");
-
-	var dbserver = new mongodb.Server(host, port, {auto_reconnect:true});
-	var db = new mongodb.Db(dbName, dbserver, {native_parser:false, strict:true, safe:true});
-
+	var db = new mongodb.Db(dbName, new mongodb.Server(host, port, SERVER_OPTS), DB_OPTS);
 	db.addListener('error', function(e){
 		console.log("MongoDB model async error: ", e);
 	});
-
-	this.ObjectID = db.bson_serializer.ObjectID;
-
-	this.ObjectId = function(v) {
-		try {
-			return this.ObjectID.createFromHexString(v);
-		}
-		catch (e) {
-			console.error(e, e.stack);
-			return "invalid_id";
-		}
-	};
-
-	function makeCursor(col, cb, cb2){
-		col.find({}, {batchSize: BATCH_SIZE}, function(err, cursor){
-			if (err) throw err;
-			cb({
-				next: function(handler) {
-					cursor.nextObject(function(err, item) {
-						if (err) {
-							//handler({error:err});
-							throw err;
-						}
-						else
-							handler(item /*, item ? next : undefined*/);
-					});
-				}
-			}, cb2);
-		});
-	}
 
 	this.load = function(colName, cb, cb2) {
 		var col = self.collections[colName];
@@ -82,27 +71,24 @@ exports.MongoConnector = function(p, cb) {
 		if (err) throw err;
 		console.log("Successfully connected to MongoDB/"+dbName+" @ " + host + ":" + port);
 		db.collections(function(err, collections) {
-			if (err)
-				console.log("MongoDB Error : " + err);
-			else 
-				(function next(){
-					var colName = (collections.shift() || {}).collectionName;
-					if (!colName)
-						cb && cb(self);
-					else
-						db.collection(colName, function(err, col) {
-							console.log(" - found table: " + colName);
-							self.collections[colName] = col;
-							next();
-						});
-				})();
+			if (err) throw err;
+			(function next(){
+				var colName = (collections.shift() || {}).collectionName;
+				if (!colName)
+					cb && cb(self);
+				else
+					db.collection(colName, function(err, col) {
+						console.log(" - found table: " + colName);
+						self.collections[colName] = col;
+						next();
+					});
+			})();
 		});
 	});
 }
 
 exports.MongoPH = function(p, cb) {
 	new exports.MongoConnector(p, function(db){
-		//console.log("MongoDB is ready!");
 		cb(new ph.PHProxy(db));
 	});
 }
