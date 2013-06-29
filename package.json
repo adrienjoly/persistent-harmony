@@ -1,16 +1,33 @@
 {
   "name": "persistent-harmony",
   "version": "0.1.0",
-  "keywords": [],
-  "author": {
-    "name": "Adrien Joly",
-    "email": "adrien@whyd.com",
-    "url":  "http://adrienjoly.com/"
-  },
+  "description": "Proxies javascript objects that are persisted in a database (e.g. MongoDB)",
+  "license": "BSD",
   "homepage": "http://adrienjoly.com/persistent-harmony",
+  "main": "index.js",
+
+  "scripts" : {
+    "install" : "make install",
+    "test" : "make"
+  },
+
   "repository": {
     "type": "git",
-    "url": "https://gitub.com/adrienjoly/persistent-harmony"
+    "url": "https://github.com/adrienjoly/persistent-harmony.git"
+  },
+
+  "keywords": [
+    "harmony",
+    "proxy",
+    "database",
+    "persistence",
+    "mongodb"
+  ],
+
+  "author": {
+    "name": "Adrien Joly",
+    "email": "adrien.joly@gmail.com",
+    "url":  "http://adrienjoly.com/"
   },
 
   "engines": {
@@ -19,8 +36,9 @@
   },
 
   "dependencies": {
-    "mongodb": ">=1.0"
   },
-  "devDependencies": {},
-  "bundleDependencies": []
+
+  "devDependencies": {
+    "mongodb": ">=1.0"
+  }
 }
