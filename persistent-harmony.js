@@ -9,12 +9,16 @@
 var LOAD = 0, SET = 1, DELETE = 2;
 var FCT_NAME = ["load", "set", "delete"];
 
-exports.PHProxy = function(db) {
+exports.PHProxy = function(db, p) {
 
 	var self = this;
 	var p = p || {};
 	this.db = db;
 	this.q = {}; // colName -> transaction queue
+
+	this.addWrapper = function(fct) {
+		(p.wrappers = p.wrappers || []).push(fct);
+	}
 
 	this.wrap = function(colName, o, cb) {
 		var o = o || {};
@@ -79,8 +83,9 @@ exports.PHProxy = function(db) {
 			hasOwn:function(name) {
 				return ({}).hasOwnProperty.call(o, name);
 			},*/
-
 		};
+		for (var i in p.wrappers)
+			handlers = p.wrappers[i](handlers);
 		return Proxy.create(handlers, o);
 	};
 
@@ -107,10 +112,22 @@ exports.PHProxy = function(db) {
 	return this;
 }
 
+function FakeDB() {
+	return {
+		load: function(colName, cb, cb2) {
+			cb2();
+		},
+		set: function(colName, f, v, cb) {
+			cb();
+		},
+		delete: function(colName, f, cb) {
+			cb();
+		}
+	};
+}
 
-
-/*
 function Log(handler, id) {
+	var id = id || "(proxy logger)";
 	return Proxy.create({
 		get: function(_, name) {
 			console.log(id + " -> " + name);
@@ -118,7 +135,10 @@ function Log(handler, id) {
 		}
 	});
 }
-*/
+
+exports.LoggedPH = function(o) {
+	return (new exports.PHProxy(new FakeDB(), {wrappers:[Log]})).wrap("", o);
+};
 
 /*
 exports.PHProxy = function(o) {
