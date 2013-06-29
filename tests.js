@@ -1,7 +1,10 @@
 console.log("persistent-harmony tests");
 
 var module = require("./persistent-harmony.js");
+var MongoPH = require("./MongoPH.js").MongoPH;
 var PH = module.LoggedPH; // ... or module.PHProxy;
+
+var MONGO_ARGS = {};
 
 var tests = [
 	["typeof proxy", function(cb){
@@ -51,6 +54,23 @@ var tests = [
 		var o = {a:[2,3,1]}, proxy = PH(o);
 		proxy.a.sort();
 		cb(proxy.a[0] === 1 && proxy.a[2] === 3);
+	}],
+	["mongoPH", function(cb){
+		new MongoPH(MONGO_ARGS, function(mongoPH){
+			console.log("MongoPH: ready!");
+			var mymap = mongoPH.wrap("mymap");
+			console.log("myapp", mymap);
+			mymap.first = "coucou";
+			console.log("myapp.first", mymap.first);
+			delete mymap.first;
+			console.log("myapp.first", mymap.first);
+			console.log("myapp", mymap);
+			setTimeout(function(){
+				// for some reason, this call requires getOwnPropertyDescriptor to be set
+				console.log("myapp", mymap);
+				cb(true)
+			}, 2000);
+		});
 	}],
 	["***end of tests ***", function(cb){
 		cb(true);

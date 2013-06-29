@@ -112,19 +112,13 @@ exports.PHProxy = function(db, p) {
 	return this;
 }
 
-function FakeDB() {
-	return {
-		load: function(colName, cb, cb2) {
-			cb2();
-		},
-		set: function(colName, f, v, cb) {
-			cb();
-		},
-		delete: function(colName, f, cb) {
-			cb();
-		}
-	};
-}
+// Utility functions
+
+var fakeDb = {
+	load: function(colName, cb, cb2) { cb2(); },
+	set: function(colName, f, v, cb) { cb(); },
+	delete: function(colName, f, cb) { cb(); }
+};
 
 function Log(handler, id) {
 	var id = id || "(proxy logger)";
@@ -137,23 +131,5 @@ function Log(handler, id) {
 }
 
 exports.LoggedPH = function(o) {
-	return (new exports.PHProxy(new FakeDB(), {wrappers:[Log]})).wrap("", o);
+	return (new exports.PHProxy(fakeDb, {wrappers:[Log]})).wrap("", o);
 };
-
-/*
-exports.PHProxy = function(o) {
-	return Proxy.create(exports.makePHHandlers(o), o);
-}
-exports.LoggedPH = function(o) {
-	var handlers = exports.makePHHandlers(o);
-	var realPH = Proxy.create(handlers, o); //exports.PHProxy(o, handlers);
-	Object.keys(handlers).map(function(method){
-		var realMethod = handlers[method];
-		handlers[method] = function(a,b,c) {
-			console.log("   [proxy]", method);
-			return realMethod(a,b,c);
-		}
-	});
-	return realPH;
-}
-*/
