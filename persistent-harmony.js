@@ -83,5 +83,3 @@ exports.LoggedPH = function(o) {
 	});
 	return realPH;
 }
-
-

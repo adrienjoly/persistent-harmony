@@ -47,6 +47,11 @@ var tests = [
 			fields.push(i);
 		cb(fields.length === 1 && fields[0] === "a");
 	}],
+	["sort", function(cb){
+		var o = {a:[2,3,1]}, proxy = PH(o);
+		proxy.a.sort();
+		cb(proxy.a[0] === 1 && proxy.a[2] === 3);
+	}],
 	["***end of tests ***", function(cb){
 		cb(true);
 	}]
