@@ -1,10 +1,41 @@
 console.log("persistent-harmony tests");
 
 var module = require("./persistent-harmony.js");
-var MongoPH = require("./MongoPH.js").MongoPH;
 var PH = module.LoggedPH; // ... or module.PHProxy;
 
 var MONGO_ARGS = {};
+var mongoPH = null; // to be initialized
+
+var mongoTests = [
+	["mongo lazy", function(cb){
+		var mymap = mongoPH.wrap("mymap", {}, function(){
+			console.log("mymap is now fully loaded from DB")
+		});
+		console.log("myapp", mymap);
+		mymap.first = "coucou";
+		console.log("myapp", mymap);
+		delete mymap.first;
+		console.log("myapp", mymap);
+		setTimeout(function(){
+			// for some reason, this call requires getOwnPropertyDescriptor to be set
+			console.log("myapp", mymap);
+			cb(true)
+		}, 2000);
+	}],
+	["mongo async", function(cb){
+		var mymap = mongoPH.wrap("mymap", {}, function(){
+			// TODO: add one field in db
+			console.log("mymap is now fully loaded from DB")
+			console.log("myapp", mymap);
+			mymap.first = "coucou";
+			console.log("myapp", mymap);
+			delete mymap.first;
+			console.log("myapp", mymap);
+			// TODO: chack that field is still there
+			cb(true)
+		});
+	}],
+];
 
 var tests = [
 	["typeof proxy", function(cb){
@@ -55,31 +86,26 @@ var tests = [
 		proxy.a.sort();
 		cb(proxy.a[0] === 1 && proxy.a[2] === 3);
 	}],
-	["mongoPH", function(cb){
-		new MongoPH(MONGO_ARGS, function(mongoPH){
-			console.log("MongoPH: ready!");
-			var mymap = mongoPH.wrap("mymap");
-			console.log("myapp", mymap);
-			mymap.first = "coucou";
-			console.log("myapp.first", mymap.first);
-			delete mymap.first;
-			console.log("myapp.first", mymap.first);
-			console.log("myapp", mymap);
-			setTimeout(function(){
-				// for some reason, this call requires getOwnPropertyDescriptor to be set
-				console.log("myapp", mymap);
-				cb(true)
-			}, 2000);
-		});
-	}],
-	["***end of tests ***", function(cb){
-		cb(true);
+	["*** loading mongo tests ***", function(cb){
+		try {
+			new require("./MongoPH.js").MongoPH(MONGO_ARGS, function(instance){
+				mongoPH = instance;
+				tests = tests.concat(mongoTests);
+				cb(true);
+			});
+		}
+		catch (e) {
+			console.error(e);
+			cb(false)
+		}
 	}]
 ];
 
 (function next(){
 	var test = tests.shift();
-	if (test) {
+	if (!test)
+		console.log("***end of tests ***");
+	else {
 		function check(r){
 			console.log ("\t\t\t\t\t\t\t=>", !!r ? "ok" : "NOK");
 			process.nextTick(next);
