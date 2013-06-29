@@ -22,13 +22,15 @@ exports.PHProxy = function(db, p) {
 
 	this.wrap = function(colName, o, cb) {
 		var o = o || {};
-		function populateFields(cursor, cb){
+		function populateFields(cursor, cb2){
 			cursor.next(function(field){
-				if (!field)
-					process.nextTick(cb);
+				if (!field) {
+					process.nextTick(cb2); // process next db action from queue
+					cb && process.nextTick(cb); // notify caller of wrap()
+				}
 				else {
 					o[field._id] = field.v;
-					populateFields(cursor, cb);
+					populateFields(cursor, cb2);
 				}
 			});
 		}
