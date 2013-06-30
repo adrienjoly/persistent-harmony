@@ -8,11 +8,16 @@ A node.js wrapper class to create persistent javascript objects, relying on harm
 	
 ## Usage
 
-Usage:
 	var ph = require("persistent-harmony");
-	var obj = new ph.PHProxy({});
-	obj.a = "hello";
-	console.log(obj["a"]);
+	new ph.MongoPH({/* default mongodb args */}, function(mongoPH){
+		var mymap = mongoPH.wrap("mymap", {/* empty object instance */}, function(){
+			console.log("mymap is now synchronized to its mongodb collection");
+			mymap.first = "coucou"; // => stored as {_id:"first", v:"coucou"} in mongodb
+			console.log("myapp", mymap);
+		});
+	});
 
-To run tests:
-	./run   (or)   node --harmony-proxies tests.js
+## Don't forget to add the `--harmony-proxies` when starting node!
+
+	node --harmony-proxies tests.js
+
