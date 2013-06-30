@@ -4,7 +4,7 @@ A node.js wrapper class to create persistent javascript objects, relying on harm
 
 ## Installation
 
-	npm install persistent-harmon
+	npm install persistent-harmony
 	
 ## Usage
 
