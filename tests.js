@@ -1,6 +1,6 @@
 console.log("persistent-harmony tests");
 
-var module = require("./persistent-harmony.js");
+var module = require("./lib/persistent-harmony.js");
 var PH = module.LoggedPH; // ... or module.PHProxy;
 
 var MONGO_ARGS = {};
@@ -88,14 +88,13 @@ var tests = [
 	}],
 	["*** loading mongo tests ***", function(cb){
 		try {
-			new require("./MongoPH.js").MongoPH(MONGO_ARGS, function(instance){
+			new mongo.MongoPH(MONGO_ARGS, function(instance){
 				mongoPH = instance;
 				tests = tests.concat(mongoTests);
 				cb(true);
 			});
 		}
 		catch (e) {
-			console.error(e);
 			cb(false)
 		}
 	}]
