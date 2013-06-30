@@ -1,7 +1,12 @@
-persistent-harmony
-==================
+# persistent-harmony
 
-A wrapper class to create persistent javascript objects, relying on harmony proxies.
+A node.js wrapper class to create persistent javascript objects, relying on harmony proxies.
+
+## Installation
+
+	npm install persistent-harmon
+	
+## Usage
 
 Usage:
 	var ph = require("persistent-harmony");
