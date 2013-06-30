@@ -1,6 +1,6 @@
 {
   "name": "persistent-harmony",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Proxies javascript objects that are persisted in a database (e.g. MongoDB)",
   "license": "BSD",
   "homepage": "http://adrienjoly.com/persistent-harmony",
