@@ -2,6 +2,13 @@
 
 A node.js wrapper class to create persistent javascript objects, relying on harmony proxies.
 
+## Rationale / use case
+
+I developed this module because:
+- I was generating big hashmaps / associative arrays in node.js, indexing data computed from my MongoDB database
+- I wanted to store the resulting javascript objects to my database so that I could load them back to memory, instead of re-computing the indices at every restart of my node.js app.
+- I didn't want to update and query these indices using asynchronous mongodb calls, but use native javascript structures instead (sychronous and fast).
+
 ## Installation
 
 	npm install persistent-harmony
