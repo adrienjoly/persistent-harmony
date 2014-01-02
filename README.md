@@ -28,3 +28,4 @@ I developed this module because:
 
 	node --harmony-proxies tests.js
 
+[![Analytics](https://ga-beacon.appspot.com/UA-1858235-12/persistent-harmony/github)](https://github.com/igrigorik/ga-beacon)
